@@ -6,7 +6,7 @@ namespace gpu::regs {
 struct alignas(4) RegisterBlock {
     // volatile because we model hardware here - we don't want the compiler to optimize access to those registers
     // every access must happen. we must assume these registers change outside the main program flow.
-    volatile bool status;
+    volatile uint32_t status;
     volatile uint32_t cmd_head;
     volatile uint32_t cmd_tail;
     volatile uint32_t irq_status;

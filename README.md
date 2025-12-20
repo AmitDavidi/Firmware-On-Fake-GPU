@@ -15,3 +15,13 @@ This is NOT:
 - A real GPU
 - CUDA
 - Graphics rendering
+
+
+TODO - Implement
+
+- mutex \ semaphore
+- printf-ringbuffer
+- malloc \ free
+- work with valgrind - insert bugs and catch them
+- gdb with vscode
+
