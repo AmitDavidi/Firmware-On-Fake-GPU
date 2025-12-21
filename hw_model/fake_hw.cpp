@@ -1,5 +1,7 @@
 #include "fake_hw.hpp"
 #include <iostream>
+#include <random>
+
 // ----------------------------------------------------------
 // ---              Main Hardware thread                  ---
 // ---  this will simulate the basic hardware operations  ---
@@ -46,6 +48,8 @@ static RegisterBlock hw_regs {};
 
 
 namespace gpu::hw {
+using namespace  gpu::hw;
+
 
 
 // Direct access breaks the HW/FW contract - FW doesn't have acess to the entire register space
@@ -53,38 +57,55 @@ namespace gpu::hw {
 uintptr_t get_mmio_base() {
     return reinterpret_cast<uintptr_t>(&hw_regs);
 }
+bool generate_irq_error() {
+   if (rand() % 10 == 0) {
+        return true;
+    }
+    return false;
+}
 
+void fake_hw_loop(std::atomic<bool>& running)
+{
+    uint32_t latched_cmd = 0;
 
-void fake_hw_loop(std::atomic<bool>& running) {
-    // WHY ATOMIC - WHY .LOAD - TODO study this library
-
-    while(running.load()) {
+    while (running.load()) {
         std::this_thread::sleep_for(std::chrono::nanoseconds(1));
 
-        static uint32_t clock_count = 0;
-        clock_count++;
-        // std::cout << "Clock " << clock_count << std::endl;
+        // START edge
+        if ((hw_regs.start & 0x1) && hw_regs.busy == 0) {
 
-        if (hw_regs.control & 0x1) {
-            hw_regs.control &= ~0x1;
+            latched_cmd = hw_regs.cmd_tail;
 
-            hw_regs.status = 1; // SET BUSY
-            std::this_thread::sleep_for(std::chrono::milliseconds((50))); // TODO ADD RANDOMIZATION
-            // completed
+            hw_regs.start = 0;      // consume pulse
 
-            hw_regs.cmd_head = hw_regs.cmd_tail;
+            hw_regs.busy  = 1;
 
-            // SET IDLE
-            hw_regs.status = 0;
-            hw_regs.control = 0;
-            // randomize irq 
-            hw_regs.irq_status = 0;
+            hw_regs.done  = 0;
+            
+            // simulate execution
+            std::this_thread::sleep_for(std::chrono::milliseconds(10 + rand()%50));
 
-            std::cout << "Clock " << clock_count << " " << hw_regs.cmd_tail << " Completed" << std::endl;
+            // complete
+            hw_regs.cmd_head = latched_cmd;
+            hw_regs.done = 1;
+            hw_regs.busy = 0;
+
+            std::cout
+                << "Cmd: " << latched_cmd
+                << " Completed\n";
         }
 
+        // FW clears DONE
+        if (hw_regs.clear_done) {
+            hw_regs.done = 0;
+            hw_regs.clear_done = 0;
+        }
     }
 }
 
+
+
+
+            
 } // namespace gpu::hw
 
