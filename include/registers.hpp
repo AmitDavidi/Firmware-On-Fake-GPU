@@ -3,7 +3,31 @@
 
 namespace gpu::regs {
 
+
+
 struct alignas(4) RegisterBlock {
+    // ---- FW -> HW ----
+    volatile uint64_t queue_base_addr; // physical / simulated address
+    volatile uint32_t queue_size;
+    volatile uint32_t queue_tail;      // FW-owned
+    volatile uint32_t doorbell;
+
+    // ---- HW -> FW ----
+    volatile uint32_t queue_head;      // HW-owned
+    volatile uint32_t queue_full;
+    volatile uint32_t busy;
+
+    // ---- completion ----
+    volatile uint32_t done_count;
+
+    // ---- errors ----
+    volatile uint32_t irq_status;
+};
+    
+// ========================================================
+// ==== For first iteration of Simple Design with no queue 
+// ========================================================
+struct alignas(4) RegisterBlock_no_queue {
     // volatile because we model hardware here - we don't want the compiler to optimize access to those registers
     // every access must happen. we must assume these registers change outside the main program flow.
     volatile uint32_t busy; 
@@ -15,6 +39,8 @@ struct alignas(4) RegisterBlock {
     volatile uint32_t clear_done;
 };
 
+
+// a lesson about padding
 struct BadRegs {
     uint32_t status;   // 0x00
     uint8_t cmd_head;  // 0x04 ??? actually padding added
@@ -24,6 +50,6 @@ struct BadRegs {
 
 
 // the total byte size of RegisterBlock must be 4Bytes * 5 Registers = 20Bytes
-static_assert(sizeof(RegisterBlock) == 0x1C);
+static_assert(sizeof(RegisterBlock) == 0x28);
 
 } // namespace gpu::regs
